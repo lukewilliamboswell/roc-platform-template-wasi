@@ -3,19 +3,17 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
-    // hardcode build for -Dtarget=wasm32-wasi-musl target
-    const target = std.zig.CrossTarget{
-        .cpu_arch = .wasm32,
-        .os_tag = .wasi,
-        .abi = .musl,
-    };
-
     const lib = b.addSharedLibrary(.{
         .name = "host",
-        .root_source_file = .{ .path = "host/main.zig" },
-        .target = target,
+        .root_source_file = b.path("host/main.zig"),
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .abi = .musl,
+        }),
         .optimize = optimize,
         .link_libc = true,
+        .use_lld = false,
     });
 
     b.installArtifact(lib);

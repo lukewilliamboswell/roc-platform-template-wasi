@@ -1,7 +1,7 @@
 app [makeGlue] {
     pf: platform "https://github.com/lukewilliamboswell/roc/releases/download/test/olBfrjtI-HycorWJMxdy7Dl2pcbbBoJy4mnSrDtRrlI.tar.br",
     json: "https://github.com/lukewilliamboswell/roc-json/releases/download/0.10.0/KbIfTNbxShRX1A1FgXei1SpO5Jn8sgP6HP6PXbi-xyA.tar.br",
-    glue: "https://github.com/lukewilliamboswell/roc-glue-code-gen/releases/download/0.1.0/NprKi63CKBinQjoke2ttsOTHmjmsrmsILzRgzlds02c.tar.br",
+    glue: "https://github.com/lukewilliamboswell/roc-glue-code-gen/releases/download/0.3.0/yLZOMtBqZE-GL-MD1b1Bq8Dz3aaSGIpqp2pOzvRZAh0.tar.br",
 }
 
 import pf.Types exposing [Types]
