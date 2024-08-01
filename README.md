@@ -10,14 +10,13 @@ You should now have a `host.wasm`
 ```sh
 $ wasmer inspect zig-out/bin/host.wasm
 Type: wasm
-Size: 774.2 KB
+Size: 18.3 KB
 Imports:
   Functions:
     "wasi_snapshot_preview1"."args_get": [I32, I32] -> [I32]
     "wasi_snapshot_preview1"."args_sizes_get": [I32, I32] -> [I32]
     "wasi_snapshot_preview1"."fd_write": [I32, I32, I32, I32] -> [I32]
     "wasi_snapshot_preview1"."proc_exit": [I32] -> []
-    "wasi_snapshot_preview1"."random_get": [I32, I32] -> [I32]
     "env"."roc__mainForHost_1_exposed_size": [] -> [I64]
     "env"."roc__mainForHost_1_exposed_generic": [I32] -> []
     "env"."roc__mainForHost_0_caller": [I32, I32, I32] -> []
@@ -36,7 +35,6 @@ Exports:
     "roc_dbg": [I32, I32, I32] -> []
     "roc_memset": [I32, I32, I32] -> [I32]
     "roc_fx_stdoutLine": [I32, I32] -> []
-    "wasi_thread_start": [I32, I32] -> []
   Memories:
     "memory": not shared (257 pages..)
   Tables:
