@@ -6,10 +6,8 @@ app
 *.a
 *.tar.br
 *.tar.gz
-*.wasm
 
 zig-cache/
-zig-out/
 build
 app
 
