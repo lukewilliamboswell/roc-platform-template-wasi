@@ -7,7 +7,6 @@ hosted Effect
         always,
         forever,
         loop,
-
         stdoutLine,
     ]
     imports []

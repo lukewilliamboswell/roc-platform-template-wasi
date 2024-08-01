@@ -1,9 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const optimize = b.standardOptimizeOption(.{});
-
-    const lib = b.addSharedLibrary(.{
+    const exe = b.addExecutable(.{
         .name = "host",
         .root_source_file = b.path("host/main.zig"),
         .target = b.resolveTargetQuery(.{
@@ -11,10 +9,13 @@ pub fn build(b: *std.Build) void {
             .os_tag = .wasi,
             .abi = .musl,
         }),
-        .optimize = optimize,
+        .optimize = std.builtin.OptimizeMode.ReleaseSmall,
         .link_libc = true,
-        .use_lld = false,
+        .pic = true,
+        .linkage = .dynamic,
     });
 
-    b.installArtifact(lib);
+    exe.rdynamic = true;
+
+    b.installArtifact(exe);
 }

@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const str = @import("roc/str.zig");
 const RocStr = str.RocStr;
-const RocResult = @import("roc/result.zig").RocResult;
+const RocResult = @import("result.zig").RocResult;
 const testing = std.testing;
 const expectEqual = testing.expectEqual;
 const expect = testing.expect;
@@ -13,12 +13,6 @@ extern fn realloc(c_ptr: [*]align(Align) u8, size: usize) callconv(.C) ?*anyopaq
 extern fn free(c_ptr: [*]align(Align) u8) callconv(.C) void;
 extern fn memcpy(dst: [*]u8, src: [*]u8, size: usize) callconv(.C) void;
 extern fn memset(dst: [*]u8, value: i32, size: usize) callconv(.C) i32;
-
-comptime {
-    if (builtin.target.cpu.arch != .wasm32) {
-        @compileError("This platform is for WebAssembly only");
-    }
-}
 
 const DEBUG: bool = false;
 
@@ -96,9 +90,9 @@ fn roc_mmap(addr: ?*anyopaque, length: c_uint, prot: c_int, flags: c_int, fd: c_
 
 comptime {
     if (builtin.os.tag == .macos or builtin.os.tag == .linux) {
-        @export(roc_getppid, .{ .name = "roc_getppid", .linkage = .Strong });
-        @export(roc_mmap, .{ .name = "roc_mmap", .linkage = .Strong });
-        @export(roc_shm_open, .{ .name = "roc_shm_open", .linkage = .Strong });
+        @export(roc_getppid, .{ .name = "roc_getppid", .linkage = .strong });
+        @export(roc_mmap, .{ .name = "roc_mmap", .linkage = .strong });
+        @export(roc_shm_open, .{ .name = "roc_shm_open", .linkage = .strong });
     }
 
     if (builtin.os.tag == .windows) {
@@ -132,17 +126,23 @@ fn call_the_closure(closure_data_ptr: *const u8) callconv(.C) i32 {
     }
 }
 
-// TODO what are these arguments? why do we need this signature for wasi?
-export fn main(a: i32, b: i32) i32 {
-    // _ = a;
-    // _ = b;
+pub fn main() void {
     const stdout = std.io.getStdOut().writer();
-    stdout.print("FOO {?} {?}\n", .{ a, b }) catch unreachable;
+    stdout.print("STARTING\n", .{}) catch unreachable;
 
-    return 0;
+    call_roc();
 }
+// TODO what are these arguments? why do we need this signature for wasi?
+// export fn main(a: i32, b: i32) i32 {
+//     _ = a;
+//     _ = b;
+//     const stdout = std.io.getStdOut().writer();
+//     stdout.print("FOO\n", .{}) catch unreachable;
 
-pub fn start() void {
+//     return 0;
+// }
+
+pub fn call_roc() void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 

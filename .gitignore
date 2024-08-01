@@ -1,8 +1,4 @@
 generated-docs/
-host/glueForArch/
-host/glue.zig
-host/types.json
-host/roc/
 
 build
 app
