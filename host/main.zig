@@ -1,71 +1,107 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const RocResult = @import("result.zig").RocResult;
+const assert = std.debug.assert;
+
+const config = @import("config");
+
+const allocator = @import("allocator.zig");
+
 const str = @import("roc/str.zig");
 const RocStr = str.RocStr;
-const RocResult = @import("result.zig").RocResult;
-const testing = std.testing;
-const expectEqual = testing.expectEqual;
-const expect = testing.expect;
 
-const Align = 2 * @alignOf(usize);
-extern fn malloc(size: usize) callconv(.C) ?*align(Align) anyopaque;
-extern fn realloc(c_ptr: [*]align(Align) u8, size: usize) callconv(.C) ?*anyopaque;
-extern fn free(c_ptr: [*]align(Align) u8) callconv(.C) void;
-extern fn memcpy(dst: [*]u8, src: [*]u8, size: usize) callconv(.C) void;
-extern fn memset(dst: [*]u8, value: i32, size: usize) callconv(.C) i32;
+const list = @import("roc/list.zig");
+const RocList = list.RocList;
 
-const DEBUG: bool = false;
+const utils = @import("roc/utils.zig");
 
-export fn roc_alloc(size: usize, alignment: u32) callconv(.C) ?*anyopaque {
-    if (DEBUG) {
-        const ptr = malloc(size);
-        const stdout = std.io.getStdOut().writer();
-        stdout.print("alloc:   {d} (alignment {d}, size {d})\n", .{ ptr, alignment, size }) catch unreachable;
-        return ptr;
-    } else {
-        return malloc(size);
+// Random numbers
+var prng = std.rand.DefaultPrng.init(0);
+var rnd = prng.random();
+
+// The canary is right after the frame buffer.
+// The stack grows down and will run into the frame buffer if it overflows.
+// const CANARY_PTR: [*]usize = @ptrFromInt(@intFromPtr(w4.FRAMEBUFFER) + w4.FRAMEBUFFER.len);
+const CANARY_SIZE = 8;
+fn reset_stack_canary() void {
+    // var i: usize = 0;
+    // while (i < CANARY_SIZE) : (i += 1) {
+    //     CANARY_PTR[i] = 0xDEAD_BEAF;
+    // }
+}
+
+fn check_stack_canary() void {
+    // var i: usize = 0;
+    // while (i < CANARY_SIZE) : (i += 1) {
+    //     if (CANARY_PTR[i] != 0xDEAD_BEAF) {
+    //         w4.trace("Warning: Stack canary damaged! There was likely a stack overflow during roc execution. Overflows write into the screen buffer and other hardware registers.");
+    //         return;
+    //     }
+    // }
+}
+
+export fn roc_alloc(requested_size: usize, alignment: u32) callconv(.C) *anyopaque {
+    _ = alignment;
+    if (allocator.malloc(requested_size)) |ptr| {
+        return @ptrCast(ptr);
+    } else |err| switch (err) {
+        error.OutOfMemory => {
+            @panic("ran out of memory");
+        },
     }
 }
 
-export fn roc_realloc(c_ptr: *anyopaque, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?*anyopaque {
-    if (DEBUG) {
-        const stdout = std.io.getStdOut().writer();
-        stdout.print("realloc: {d} (alignment {d}, old_size {d})\n", .{ c_ptr, alignment, old_size }) catch unreachable;
+export fn roc_realloc(old_ptr: *anyopaque, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?*anyopaque {
+    _ = alignment;
+    _ = old_size;
+    if (allocator.realloc(old_ptr, new_size)) |ptr| {
+        return @ptrCast(ptr);
+    } else |err| switch (err) {
+        error.OutOfMemory => {
+            @panic("ran out of memory");
+        },
+        error.OutOfRange => {
+            @panic("Roc attempted to realloc a pointer that wasn't allocated. Something is definitely wrong.");
+        },
     }
-
-    return realloc(@as([*]align(Align) u8, @alignCast(@ptrCast(c_ptr))), new_size);
 }
 
 export fn roc_dealloc(c_ptr: *anyopaque, alignment: u32) callconv(.C) void {
-    if (DEBUG) {
-        const stdout = std.io.getStdOut().writer();
-        stdout.print("dealloc: {d} (alignment {d})\n", .{ c_ptr, alignment }) catch unreachable;
+    _ = alignment;
+    if (allocator.free(c_ptr)) {
+        return;
+    } else |err| switch (err) {
+        error.OutOfRange => {
+            @panic("Roc attempted to dealloc a pointer that wasn't allocated. Something is definitely wrong.");
+        },
     }
-
-    free(@as([*]align(Align) u8, @alignCast(@ptrCast(c_ptr))));
 }
 
-export fn roc_panic(msg: *RocStr, tag_id: u32) callconv(.C) void {
-    const stderr = std.io.getStdErr().writer();
-    switch (tag_id) {
-        0 => {
-            stderr.print("Roc standard library crashed with message\n\n    {s}\n\nShutting down\n", .{msg.asSlice()}) catch unreachable;
-        },
-        1 => {
-            stderr.print("Application crashed with message\n\n    {s}\n\nShutting down\n", .{msg.asSlice()}) catch unreachable;
-        },
-        else => unreachable,
-    }
-    std.process.exit(1);
+export fn roc_panic(msg: *RocStr, _: u32) callconv(.C) void {
+    _ = msg;
+    @panic("ROC PANICKED");
 }
 
+// Currently roc does not generate debug statements except with `roc dev ...`.
+// So this won't actually be called until that is updated.
 export fn roc_dbg(loc: *RocStr, msg: *RocStr, src: *RocStr) callconv(.C) void {
-    const stderr = std.io.getStdErr().writer();
-    stderr.print("[{s}] {s} = {s}\n", .{ loc.asSlice(), src.asSlice(), msg.asSlice() }) catch unreachable;
+    _ = loc;
+    _ = msg;
+    _ = src;
+    // var loc0 = str.strConcatC(loc.*, RocStr.fromSlice(&[1]u8{0}));
+    // defer loc0.decref();
+    // var msg0 = str.strConcatC(msg.*, RocStr.fromSlice(&[1]u8{0}));
+    // defer msg0.decref();
+    // var src0 = str.strConcatC(src.*, RocStr.fromSlice(&[1]u8{0}));
+    // defer src0.decref();
+
+    // std.debug.print("[{?}] {?} = {?}\n", .{ loc0, src0, msg0 });
+    @panic("ROC DBG");
 }
 
 export fn roc_memset(dst: [*]u8, value: i32, size: usize) callconv(.C) i32 {
-    return memset(dst, value, size);
+    @memset(dst[0..size], @as(u8, @intCast(value)));
+    return 0;
 }
 
 extern fn kill(pid: c_int, sig: c_int) c_int;
@@ -100,9 +136,6 @@ comptime {
     }
 }
 
-const mem = std.mem;
-const Allocator = mem.Allocator;
-
 extern fn roc__mainForHost_1_exposed_generic(*anyopaque) callconv(.C) void;
 extern fn roc__mainForHost_1_exposed_size() callconv(.C) i64;
 
@@ -126,23 +159,13 @@ fn call_the_closure(closure_data_ptr: *const u8) callconv(.C) i32 {
     }
 }
 
-pub fn main() void {
+export fn start() void {
     const stdout = std.io.getStdOut().writer();
     stdout.print("STARTING\n", .{}) catch unreachable;
-
     call_roc();
 }
-// TODO what are these arguments? why do we need this signature for wasi?
-// export fn main(a: i32, b: i32) i32 {
-//     _ = a;
-//     _ = b;
-//     const stdout = std.io.getStdOut().writer();
-//     stdout.print("FOO\n", .{}) catch unreachable;
 
-//     return 0;
-// }
-
-pub fn call_roc() void {
+export fn call_roc() void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 
@@ -150,7 +173,7 @@ pub fn call_roc() void {
 
     // call into roc
     const size = @as(usize, @intCast(roc__mainForHost_1_exposed_size()));
-    const captures = roc_alloc(size, @alignOf(u128)).?;
+    const captures = roc_alloc(size, @alignOf(u128));
     defer roc_dealloc(captures, @alignOf(u128));
 
     roc__mainForHost_1_exposed_generic(captures);
