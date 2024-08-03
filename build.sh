@@ -1,12 +1,11 @@
-# find . -name "*.a" ! -path "./.zig-cache/*" -delete
-# find . -name "*.o" ! -path "./.zig-cache/*" -delete
-# find . -name "*.wasm" ! -path "./.zig-cache/*" -delete
-# find . -name "*.wat" ! -path "./.zig-cache/*" -delete
-# find . -name "*.ll" ! -path "./.zig-cache/*" -delete
+# let's manually build and link the roc app and host together
 
-# rm -rf ./zig-out
 
-# get the LLVM bicode file app.ll
-roc build --target=wasm32 --no-link --emit-llvm-ir app.roc
+#  step 1. build the roc app
+roc build --target=wasm32 --no-link app.roc
 
-zig build-obj app.ll -target wasm32-wasi
+#  step 2. build the host
+zig build-lib host/main.zig -target wasm32-wasi-musl -lc
+
+#  step 3. link the app and host together
+wasm-ld libmain.a app.wasm -o out.wasm --entry=main
