@@ -14,7 +14,7 @@
         let pkgs = nixpkgs.legacyPackages.${system};
         in {
             default = pkgs.mkShell {
-            packages = [ pkgs.zig pkgs.lld_18.dev ];
+            packages = [ pkgs.zig pkgs.lld_18.dev pkgs.wasmtime ];
             };
         }
         );
