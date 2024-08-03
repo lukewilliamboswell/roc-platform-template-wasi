@@ -3,6 +3,7 @@ generated-docs/
 build
 app
 
+*.o
 *.a
 *.tar.br
 *.tar.gz
