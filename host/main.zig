@@ -13,11 +13,16 @@ const utils = @import("roc/utils.zig");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
+fn handle_alloc_err(err: std.mem.Allocator.Error) noreturn {
+    std.debug.print("Memory allocation failed: {}\n", .{err});
+    @panic("Critical: Out of memory");
+}
+
 export fn roc_alloc(requested_size: usize, alignment: u32) callconv(.C) *anyopaque {
     _ = alignment;
 
     const full_size = requested_size + @sizeOf(usize);
-    var raw_ptr = (allocator.alloc(u8, full_size) catch unreachable).ptr;
+    var raw_ptr = (allocator.alloc(u8, full_size) catch |err| handle_alloc_err(err)).ptr;
     @as([*]usize, @alignCast(@ptrCast(raw_ptr)))[0] = full_size;
     raw_ptr += @sizeOf(usize);
     return @as(*anyopaque, @ptrCast(raw_ptr));
@@ -29,18 +34,14 @@ export fn roc_realloc(c_ptr: *anyopaque, new_size: usize, old_size: usize, align
     _ = old_size;
     _ = alignment;
 
-    // free old memory
     var raw_ptr = @as([*]u8, @ptrCast(c_ptr)) - @sizeOf(usize);
-    var full_size = @as([*]usize, @alignCast(@ptrCast(raw_ptr)))[0];
-    const slice = raw_ptr[0..full_size];
-    allocator.free(slice);
+    const full_size = @as([*]usize, @alignCast(@ptrCast(raw_ptr)))[0];
 
-    // alloate new memory
-    full_size = new_size + @sizeOf(usize);
-    raw_ptr = (allocator.alloc(u8, full_size) catch unreachable).ptr;
-    @as([*]usize, @alignCast(@ptrCast(raw_ptr)))[0] = full_size;
-    raw_ptr += @sizeOf(usize);
-    return @as(*anyopaque, @ptrCast(raw_ptr));
+    const new_full_size = new_size + @sizeOf(usize);
+    const new_raw_ptr = allocator.realloc(raw_ptr[0..full_size], new_full_size) catch |err| handle_alloc_err(err);
+
+    @as([*]usize, @alignCast(@ptrCast(new_raw_ptr.ptr)))[0] = new_full_size;
+    return @as(*anyopaque, @ptrCast(new_raw_ptr.ptr + @sizeOf(usize)));
 }
 
 export fn roc_dealloc(c_ptr: *anyopaque, alignment: u32) callconv(.C) void {
@@ -53,17 +54,20 @@ export fn roc_dealloc(c_ptr: *anyopaque, alignment: u32) callconv(.C) void {
 }
 
 export fn roc_panic(msg: *RocStr, _: u32) callconv(.C) void {
-    _ = msg;
-    @panic("ROC PANICKED");
+    std.debug.print("ROC PANICKED: {s}\n", .{msg.asSlice()});
+    @panic("EXITING...\n");
 }
 
+// NOTE
 // Currently roc does not generate debug statements except with `roc dev ...`.
 // So this won't actually be called until that is updated.
 export fn roc_dbg(loc: *RocStr, msg: *RocStr, src: *RocStr) callconv(.C) void {
-    _ = loc;
-    _ = msg;
-    _ = src;
-    @panic("ROC DBG");
+    const stderr = std.io.getStdErr().writer();
+    stderr.print("ROC DEBUG: {s} - {s}\nSource: {s}\n", .{
+        loc.asSlice(),
+        msg.asSlice(),
+        src.asSlice(),
+    }) catch unreachable;
 }
 
 extern fn roc__mainForHost_1_exposed_generic(*anyopaque) callconv(.C) void;
@@ -88,13 +92,9 @@ fn call_the_closure(closure_data_ptr: *const u8) callconv(.C) i32 {
     }
 }
 
-pub fn main() void {
-    const stdout = std.io.getStdOut().writer();
-    stdout.print("STARTING\n", .{}) catch unreachable;
-    call_roc();
-}
-
-export fn call_roc() void {
+export fn main(a: i32, b: i32) callconv(.C) i32 {
+    _ = a;
+    _ = b;
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 
@@ -117,6 +117,8 @@ export fn call_roc() void {
     } else {
         stderr.print("Exited with code {d}, in {d:.3}ms\n", .{ exit_code, seconds * 1000 }) catch unreachable;
     }
+
+    return 0;
 }
 
 // an example effect to provide to the platform

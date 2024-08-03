@@ -3,9 +3,7 @@
 ```sh
 $ nix develop
 $ bash build.sh
+$ wasmer run out.wasm
+Roc loves WASI
+Runtime: 0.899ms
 ```
-
-## Tools
-
-wasm-objdump -x
-wasm-ld

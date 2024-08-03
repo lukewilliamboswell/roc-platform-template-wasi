@@ -3,10 +3,12 @@ generated-docs/
 build
 app
 
+*.ll
 *.o
 *.a
 *.tar.br
 *.tar.gz
+*.wasm
 
 zig-cache/
 build
