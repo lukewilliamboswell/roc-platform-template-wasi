@@ -1,6 +1,8 @@
 # Roc platform template for WASI using Zig
 
-WASI Preview 2 using [roc](https://www.roc-lang.org), and [zig](https://ziglang.org)
+WASI Preview 1 using [roc](https://www.roc-lang.org), and [zig](https://ziglang.org)
+
+Install roc separately, see [roc-lang.org/install](https://www.roc-lang.org/install)
 
 ```sh
 $ nix develop

@@ -21,7 +21,7 @@ roc build \
 #  step 3. link the app and host together
 #  (normally done internally by roc)
 zig build-exe \
-    -target wasm32-wasi.0.2.0 \
+    -target wasm32-wasi.0.1.0 \
     -lc -O ReleaseSmall \
     -fPIC \
     -fstrip \
